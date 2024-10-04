@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 3D Exoplanet</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        #sceneContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .img {
+            display: none;
+            /* Hide the image as it is now represented in 3D */
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+        }
+
+        .btn {
+            display: block;
+            margin: 10px 0;
+            padding: 10px 20px;
+            background-color: #6599e8;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        #infoContainer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+            display: none;
+        }
+
+        h2,
+        p {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Scene Container for Three.js -->
+    <div id="sceneContainer"></div>
+
+    <!-- UI Controls -->
+    <div id="controls">
+        <h2>Interactive Exoplanet Visualization</h2>
+        <p>Use the buttons below to interact:</p>
+        <button class="btn" onclick="toggleAtmosphere()">Toggle Atmosphere</button>
+        <button class="btn" onclick="changeStarField()">Change Star Field</button>
+        <button class="btn" onclick="spinPlanet()">Spin Planet</button>
+        <!-- *** -->
+        <button class="button" onclick="toggleMoons()">Show Moons</button>
+        <button class="button" onclick="toggleRings()">Show Rings</button>
+        <button class="button" onclick="showInfo()">Show Information</button>
+    </div>
+
+    <!-- Information Container*** -->
+    <div id="infoContainer">
+        <h2>Uranus Overview</h2>
+        <p>Uranus is the seventh planet from the Sun and has a unique blue-green color due to methane in its atmosphere.
+            It has 13 rings and 27 known moons.</p>
+        <h2>Key Moons of Uranus:</h2>
+        <ul>
+            <li><b>Miranda</b>: Closest large moon, 471 km diameter.</li>
+            <li><b>Ariel</b>: Rich in water ice and silicate.</li>
+            <li><b>Umbriel</b>: Heavily cratered, dark surface.</li>
+            <li><b>Titania</b>: Largest moon, over 1,577 km diameter.</li>
+            <li><b>Oberon</b>: Most distant large moon.</li>
+        </ul>
+        <h2>Rings of Uranus:</h2>
+        <p>Uranus has 13 known rings, composed mainly of dark, small particles. The epsilon ring is the brightest and
+            densest.</p>
+    </div>
+
+
+    <!-- Include Three.js and OrbitControls Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // Initialize the Scene
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('sceneContainer').appendChild(renderer.domElement);
+
+        // Orbit Controls for Interactivity
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Create the 3D Exoplanet Sphere
+        const textureLoader = new THREE.TextureLoader();
+        const planetTexture = textureLoader.load('pexels-zelch-20376388.jpg'); // Use the given image texture for 3D representation
+        const planetGeometry = new THREE.SphereGeometry(5, 64, 64);
+        const planetMaterial = new THREE.MeshPhongMaterial({ map: planetTexture });
+        const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+        scene.add(planet);
+
+        // Create the Ring System***
+        const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, opacity: 0.5, transparent: true });
+        const ringGeometry = new THREE.RingGeometry(7, 7.5, 64);
+        const rings = new THREE.Mesh(ringGeometry, ringMaterial);
+        rings.rotation.x = Math.PI / 2; // Orient the ring system
+        rings.visible = false; // Initially hidden
+        scene.add(rings);
+
+        // Create Moons of Uranus***
+        const moonData = [
+            { name: 'Miranda', size: 0.5, distance: 7 },
+            { name: 'Ariel', size: 0.6, distance: 9 },
+            { name: 'Umbriel', size: 0.7, distance: 12 },
+            { name: 'Titania', size: 0.8, distance: 15 },
+            { name: 'Oberon', size: 0.8, distance: 18 }
+        ];
+        const moons = [];
+        moonData.forEach(moon => {
+            const moonGeometry = new THREE.SphereGeometry(moon.size, 32, 32);
+            const moonMaterial = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+            const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+            moonMesh.position.set(moon.distance, 0, 0);
+            moonMesh.visible = false; // Hidden by default
+            moons.push(moonMesh);
+            scene.add(moonMesh);
+        });
+
+        // Animation loop***
+        let rotate = true;
+        function animate() {
+            requestAnimationFrame(animate);
+            if (rotate) uranus.rotation.y += 0.001;
+            moons.forEach((moon, index) => {
+                moon.rotation.y += 0.002; // Slow rotation of moons
+                moon.position.x = moonData[index].distance * Math.cos(uranus.rotation.y + index);
+                moon.position.z = moonData[index].distance * Math.sin(uranus.rotation.y + index);
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+
+
+
+        // Atmospheric Glow using Shader Material
+        const atmosphereMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+                varying vec3 vertexNormal;
+                void main() {
+                    vertexNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vertexNormal;
+                void main() {
+                    float intensity = pow(0.7 - dot(vertexNormal, vec3(0, 0, 1.0)), 6.0);
+                    gl_FragColor = vec4(0.0, 0.3, 1.0, 1.0) * intensity;
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide
+        });
+        const atmosphere = new THREE.Mesh(planetGeometry.clone(), atmosphereMaterial);
+        atmosphere.scale.set(1.1, 1.1, 1.1);
+        atmosphere.visible = true;
+        scene.add(atmosphere);
+
+        // Star Field Setup
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 1000;
+        const starVertices = [];
+        for (let i = 0; i < starCount; i++) {
+            const x = (Math.random() - 0.5) * 2000;
+            const y = (Math.random() - 0.5) * 2000;
+            const z = -Math.random() * 2000;
+            starVertices.push(x, y, z);
+        }
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff });
+        const starField = new THREE.Points(starGeometry, starMaterial);
+        scene.add(starField);
+
+        // Lighting Setup
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 1);
+        pointLight.position.set(20, 20, 20);
+        scene.add(pointLight);
+
+        // Camera positioning
+        camera.position.z = 15;
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // UI Control Functions
+        function toggleAtmosphere() {
+            atmosphere.visible = !atmosphere.visible;
+        }
+        function changeStarField() {
+            starField.rotation.x += Math.PI / 6;
+        }
+
+        function spinPlanet() {
+            planet.rotation.y += Math.PI / 6;  // Adds a quick spin to the planet
+        }
+
+        // Toggle Moons Visibility***
+        function toggleMoons() {
+            moons.forEach(moon => moon.visible = !moon.visible);
+        }
+
+        // Toggle Rings Visibility***
+        function toggleRings() {
+            rings.visible = !rings.visible;
+        }
+        // Show Information Section***
+        function showInfo() {
+            const info = document.getElementById('infoContainer');
+            if (info.style.display === 'none') {
+                info.style.display = 'block';
+            } else {
+                info.style.display = 'none';
+            }
+        }
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+
+    </script>
+</body>
+
+</html>
